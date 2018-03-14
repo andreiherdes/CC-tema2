@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<resource>
+	<item>
+		<id>1</id>
+		<name>Vasile</name>
+		<occupation>Inginer</occupation>
+	</item>
+	<item>
+		<id>2</id>
+		<name>George</name>
+		<occupation>Profesor</occupation>
+	</item>
+</resource>
