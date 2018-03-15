@@ -51,6 +51,8 @@ public class Main {
 		String pattern = mainUri + "[^/]*";
 		Pattern regex = Pattern.compile(pattern);
 
+		String encoding = "UTF-8";
+
 		HttpServer server = HttpServer.create(new InetSocketAddress(Integer.parseInt(PORT)), 0);
 		server.createContext("/", new HttpHandler() {
 			@Override
@@ -61,9 +63,14 @@ public class Main {
 				StringBuilder response = new StringBuilder();
 				OutputStream os = exchange.getResponseBody();
 
+				exchange.getResponseHeaders().set("Content-Type", "text/xml; charset=" + encoding);
+
 				if (!matcher.find()) {
-					response.append(Constants.ERROR);
+					response.append("<response>\n");
+					response.append("\t" + Constants.ERROR + "\n");
+					response.append("<response>\n");
 					exchange.sendResponseHeaders(404, response.toString().getBytes().length);
+
 					os.write(response.toString().getBytes());
 					os.close();
 				} else {
@@ -71,13 +78,18 @@ public class Main {
 
 						switch (exchange.getRequestMethod()) {
 						case "GET":
+
 							if (resources != null && !resources.isEmpty()) {
+								response.append("<response>");
 								for (Person person : resources) {
 									response.append(person.toString());
 								}
+								response.append("</response>");
 								exchange.sendResponseHeaders(200, response.toString().getBytes().length);
 							} else {
+								response.append("<response>");
 								response.append(Constants.ERROR);
+								response.append("</response>");
 								exchange.sendResponseHeaders(404, response.toString().getBytes().length);
 							}
 
@@ -86,19 +98,23 @@ public class Main {
 
 							break;
 						case "PUT":
+
 							InputStream xmlPut = exchange.getRequestBody();
 							List<Person> persons = new ArrayList<>();
+							response.append("<response>");
 							try {
 								parseXml(xmlPut, persons);
 								resources = persons;
 
 								response.append("Resource updated");
+								response.append("</response>");
 								exchange.sendResponseHeaders(200, response.toString().getBytes().length);
 
 							} catch (XPathExpressionException | SAXException | ParserConfigurationException e) {
-								exchange.sendResponseHeaders(400, response.toString().getBytes().length);
 								response.append(Constants.ERROR + "\n");
 								response.append(e);
+								response.append("</response>");
+								exchange.sendResponseHeaders(400, response.toString().getBytes().length);
 								e.printStackTrace();
 
 							} finally {
@@ -113,13 +129,17 @@ public class Main {
 							try {
 								parseXml(xml, person);
 								resources.add(person.get(0));
-								response.append("Resource updated");
+								response.append("<response>\n");
+								response.append("\tResource updated\n");
+								response.append("</response>");
 								exchange.sendResponseHeaders(200, response.toString().getBytes().length);
 
 							} catch (XPathExpressionException | SAXException | ParserConfigurationException e) {
-								exchange.sendResponseHeaders(400, response.toString().getBytes().length);
+								response.append("<response>\n");
 								response.append(Constants.BAD_REQUEST + "\n");
 								response.append(e);
+								response.append("</response>");
+								exchange.sendResponseHeaders(400, response.toString().getBytes().length);
 								e.printStackTrace();
 
 							} finally {
@@ -129,19 +149,26 @@ public class Main {
 
 							break;
 						case "DELETE":
+
+							response.append("<response>\n");
 							if (resources == null || resources.isEmpty()) {
-								response.append("Resource already deleted");
+								response.append("Resource already deleted\n");
 							} else {
-								response.append("Resource deleted successfully");
+								response.append("Resource deleted successfully\n");
 								resources = null;
 							}
+
+							response.append("</response>");
 
 							exchange.sendResponseHeaders(200, response.toString().getBytes().length);
 							os.write(response.toString().getBytes());
 							os.close();
 							break;
 						default:
+
+							response.append("<response>");
 							response.append("405 Method not allowed");
+							response.append("</response>");
 							exchange.sendResponseHeaders(405, response.toString().getBytes().length);
 							os.write(response.toString().getBytes());
 							os.close();
@@ -152,25 +179,30 @@ public class Main {
 						Person person = getPersonById(id);
 						switch (exchange.getRequestMethod()) {
 						case "GET":
+
 							if (person != null) {
+								response.append("<response>");
 								response.append("Id found.\n");
 								response.append(person.toString());
+								response.append("</response>");
 								exchange.sendResponseHeaders(200, response.toString().getBytes().length);
 							} else {
+								response.append("<response>");
 								response.append(Constants.ERROR);
+								response.append("</response>");
 								exchange.sendResponseHeaders(404, response.toString().getBytes().length);
 							}
 
-							os = exchange.getResponseBody();
 							os.write(response.toString().getBytes());
 							os.close();
 
 							break;
 						case "PUT":
 							InputStream xmlPut = exchange.getRequestBody();
+
 							try {
 								Person newPerson = getNewPerson(xmlPut);
-
+								response.append("<response>");
 								if (person == null) {
 									resources.add(newPerson);
 									response.append("Id not found, added a new item\n");
@@ -180,6 +212,7 @@ public class Main {
 									response.append("Id found, updated the existing item\n");
 								}
 								response.append(newPerson.toString());
+								response.append("</response>");
 								exchange.sendResponseHeaders(200, response.toString().getBytes().length);
 							} catch (XPathExpressionException | ParserConfigurationException | SAXException e) {
 								response.append(Constants.BAD_REQUEST + "\n");
@@ -191,11 +224,15 @@ public class Main {
 								os.close();
 							}
 							break;
-						case "PATCH":
+						case "POST":
 							InputStream xmlPatch = exchange.getRequestBody();
+
+							response.append("<response>");
+
 							try {
 								if (person == null) {
 									response.append("Id not found\n");
+									response.append("</response>");
 									exchange.sendResponseHeaders(404, response.toString().getBytes().length);
 								} else {
 									Person newPerson = getNewPerson(xmlPatch);
@@ -203,12 +240,14 @@ public class Main {
 									resources.add(newPerson);
 									response.append("Id found, updated the existing item\n");
 									response.append(newPerson);
+									response.append("</response>");
 									exchange.sendResponseHeaders(200, response.toString().getBytes().length);
 								}
 
 							} catch (XPathExpressionException | ParserConfigurationException | SAXException e) {
 								response.append(Constants.BAD_REQUEST + "\n");
 								response.append(e);
+								response.append("</response>");
 								e.printStackTrace();
 								exchange.sendResponseHeaders(400, response.toString().getBytes().length);
 							} finally {
@@ -217,12 +256,15 @@ public class Main {
 							}
 							break;
 						case "DELETE":
+							response.append("<response>\n");
 							if (person == null) {
-								response.append("Id not found\n");
+								response.append("\tId not found\n");
+								response.append("</response>\n");
 								exchange.sendResponseHeaders(404, response.toString().getBytes().length);
 							} else {
 								resources.remove(person);
-								response.append("Id found, deleted the record\n");
+								response.append("\tId found, deleted the record\n");
+								response.append("</response>\n");
 								exchange.sendResponseHeaders(200, response.toString().getBytes().length);
 							}
 
@@ -230,7 +272,9 @@ public class Main {
 							os.close();
 							break;
 						default:
+							response.append("<response>\n");
 							response.append("405 Method not allowed");
+							response.append("</response>\n");
 							exchange.sendResponseHeaders(405, response.toString().getBytes().length);
 							os.write(response.toString().getBytes());
 							os.close();
@@ -239,10 +283,14 @@ public class Main {
 
 					}
 				}
+				try {
+					XMLGenerator.generateXml(resources);
+				} catch (ParserConfigurationException | TransformerException e) {
+					e.printStackTrace();
+				}
 			}
-		});
 
-		XMLGenerator.generateXml(resources);
+		});
 
 		server.setExecutor(null);
 		server.start();
